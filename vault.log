@@ -1,0 +1,39 @@
+2025-03-26 09:38:11,670 [INFO] - User sample_check registered successfully.
+2025-03-26 09:38:11,671 [INFO] - Saved session for user sample_check.
+2025-03-26 09:38:31,041 [INFO] - File C:/Users/hp/Downloads/Secure icles objective.docx added to vault as A:\Secure_Icles\vault\2ad54657-5c84-4c5d-974e-dea37da785c6.encrypted.
+2025-03-26 09:42:02,457 [WARNING] - Login failed for sample_check: User not found.
+2025-03-26 09:42:45,340 [WARNING] - Login failed for sample_check: User not found.
+2025-03-26 09:43:25,317 [WARNING] - Login failed for sample_check: User not found.
+2025-03-26 11:54:54,926 [INFO] - User sample_check registered successfully.
+2025-03-26 11:54:54,927 [INFO] - Saved session for user sample_check.
+2025-03-26 11:55:32,207 [INFO] - File C:/Users/hp/Downloads/DiscordSetup.exe added to vault as A:\Secure_Icles\vault\9a9e79a7-5c26-4f20-9ef4-755d759a6300.encrypted.
+2025-03-26 11:56:48,654 [INFO] - User sample_check logged out.
+2025-03-26 11:56:48,656 [INFO] - Cleared session data.
+2025-03-26 11:56:56,684 [INFO] - User sample_check logged in successfully.
+2025-03-26 11:56:56,685 [INFO] - Saved session for user sample_check.
+2025-03-27 08:01:31,551 [WARNING] - Login failed for sample1: User not found.
+2025-03-27 08:01:35,180 [INFO] - User sample1 registered successfully.
+2025-03-27 08:01:35,181 [INFO] - Saved session for user sample1.
+2025-03-27 08:01:39,414 [INFO] - User sample1 logged out.
+2025-03-27 08:01:39,415 [INFO] - Cleared session data.
+2025-03-27 08:01:45,159 [ERROR] - Username sample1 already exists.
+2025-03-27 08:01:48,706 [INFO] - User sample1 logged in successfully.
+2025-03-27 08:01:48,707 [INFO] - Saved session for user sample1.
+2025-03-27 08:02:02,162 [WARNING] - Login failed for sample1: User not found.
+2025-03-27 08:02:09,163 [WARNING] - Login failed for sample1: User not found.
+2025-03-27 08:02:18,796 [WARNING] - Login failed for sample1: User not found.
+2025-03-27 08:02:36,516 [WARNING] - Login failed for sample1: User not found.
+2025-03-27 13:45:05,959 [WARNING] - Login failed for sample1: User not found.
+2025-03-27 13:45:10,136 [INFO] - User sample1 registered successfully.
+2025-03-27 13:45:10,137 [INFO] - Saved session for user sample1.
+2025-03-27 13:45:17,076 [INFO] - User sample1 logged out.
+2025-03-27 13:45:17,076 [INFO] - Cleared session data.
+2025-03-27 13:45:20,936 [INFO] - User sample1 logged in successfully.
+2025-03-27 13:45:20,937 [INFO] - Saved session for user sample1.
+2025-03-27 13:45:22,237 [INFO] - User sample1 logged out.
+2025-03-27 13:45:22,237 [INFO] - Cleared session data.
+2025-03-27 13:45:24,819 [INFO] - User sample1 logged in successfully.
+2025-03-27 13:45:24,820 [INFO] - Saved session for user sample1.
+2025-03-27 13:45:27,531 [INFO] - User sample1 logged out.
+2025-03-27 13:45:27,532 [INFO] - Cleared session data.
+2025-03-27 13:45:45,359 [WARNING] - Login failed for sample1: User not found.
