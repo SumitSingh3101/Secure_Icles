@@ -8,15 +8,22 @@ import bcrypt
 import pyotp
 import sqlite3
 import json
+import subprocess
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
 
+APP_DIR = Path(__file__).parent
+QUARANTINE_DIR = APP_DIR /"malware"
+QUARANTINE_DIR.mkdir(exist_ok=True)
+
+
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QLineEdit, QFileDialog, QListWidget,
-    QMessageBox, QCheckBox, QComboBox, QStackedWidget, QListWidgetItem
+    QMessageBox, QCheckBox, QComboBox, QStackedWidget, QListWidgetItem,
+    QDialog
 )
 from PyQt6.QtGui import QFont, QDragEnterEvent, QDropEvent
 from PyQt6.QtCore import Qt, QMimeData, QUrl
@@ -95,12 +102,18 @@ def load_config():
             "auto_delete_days": 30,
             "require_mfa": False,
             "max_failed_attempts": 5,
-            "session_timeout_minutes": 1440  # 24 hours
+            "session_timeout_minutes": 1440,  # 24 hours
+            "clamav_path": os.path.join("clamav-1.4.2.win.x64", "clamscan.exe")
         }
         save_config(default_config)
         return default_config
     with open(CONFIG_PATH, "r") as f:
-        return json.load(f)
+        config = json.load(f)
+        # Add clamav_path if it doesn't exist in the config
+        if "clamav_path" not in config:
+            config["clamav_path"] = os.path.join("clamav-1.4.2.win.x64", "clamscan.exe")
+            save_config(config)
+        return config
 
 def save_config(config):
     with open(CONFIG_PATH, "w") as f:
@@ -175,6 +188,56 @@ def secure_delete_file(file_path):
         with open(file_path, "wb") as f:
             f.write(os.urandom(file_size))
     os.remove(file_path)
+
+
+def scan_with_clamscan(file_path):
+    config = load_config()
+    clamav_path = config.get("clamav_path", os.path.join("clamav-1.4.2.win.x64", "clamscan.exe"))
+
+    try:
+        # Check if ClamAV executable exists
+        if not os.path.exists(clamav_path):
+            logger.error(f"ClamAV executable not found at: {clamav_path}")
+            QMessageBox.warning(None, "ClamAV Not Found", 
+                               f"ClamAV executable not found at: {clamav_path}\n"
+                               f"Please configure the correct path in the settings.")
+            return True  # Allow file to be added even if ClamAV is not available
+
+        # Run ClamAV scan
+        result = subprocess.run([clamav_path, file_path], capture_output=True, text=True)
+        output = result.stdout
+        logger.info(f"ClamAV scan output:\n{output}")
+
+        if "OK" in output:
+            logger.info(f"File is clean: {file_path}")
+            return True
+        elif "FOUND" in output:
+            logger.warning(f"Malware found in file: {file_path}")
+            return False
+        else:
+            logger.warning(f"Unknown ClamAV scan result:\n{output}")
+            # Show a warning but allow the file to be added
+            QMessageBox.warning(None, "ClamAV Scan", 
+                               f"Unknown scan result for file: {file_path}\n"
+                               f"Proceed with caution.")
+            return True
+
+    except Exception as e:
+        logger.error(f"ClamAV scan failed: {e}")
+        QMessageBox.warning(None, "ClamAV Scan Failed", 
+                           f"Error scanning file: {e}\n"
+                           f"File will be added without scanning.")
+        return True  # Allow file to be added even if scan fails
+
+
+def move_to_quarantine(file_path):
+    destination = QUARANTINE_DIR / Path(file_path).name
+    try:
+        os.replace(file_path, destination)
+        logger.warning(f"Malicious file moved to quarantine: {destination}")
+    except Exception as e:
+        logger.error(f"Failed to move file to quarantine: {e}")
+
 
 # Authentication Manager
 class AuthManager:
@@ -309,6 +372,12 @@ class FileManager:
     def add_file(self, file_path, auto_delete_days=None):
         if not self.auth_manager.is_authenticated():
             return False
+        if not scan_with_clamscan(file_path):
+            move_to_quarantine(file_path)
+            QMessageBox.critical(None, "Virus Detected",
+                                 "The file appears to contain malware and has been moved to quarantine.")
+            return False
+
         encrypted_path = encrypt_file(file_path, self.auth_manager.encryption_key)
         file_id = str(uuid.uuid4())
         upload_date = datetime.datetime.now().isoformat()
@@ -451,10 +520,19 @@ class VaultWidget(QWidget):
 
         header_layout = QHBoxLayout()
         header_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+        # Add ClamAV Settings button
+        clamav_button = QPushButton("ClamAV Settings")
+        clamav_button.clicked.connect(self.open_clamav_settings)
+        clamav_button.setFixedWidth(120)
+        header_layout.addWidget(clamav_button)
+
+        # Add Logout button
         logout_button = QPushButton("Logout")
         logout_button.clicked.connect(self.logout)
         logout_button.setFixedWidth(120)
         header_layout.addWidget(logout_button)
+
         layout.addLayout(header_layout)
 
         self.drop_list = self.DropFileListWidget(self.file_manager)
@@ -528,6 +606,11 @@ class VaultWidget(QWidget):
             self.drop_list.refresh_files()
             QMessageBox.information(self, "Success", "File deleted from vault.")
 
+    def open_clamav_settings(self):
+        """Open the ClamAV configuration dialog"""
+        dialog = ClamAVConfigDialog(self)
+        dialog.exec()
+
     class DropFileListWidget(QListWidget):
         def __init__(self, file_manager):
             super().__init__()
@@ -554,6 +637,70 @@ class VaultWidget(QWidget):
                 item = QListWidgetItem(file["name"])
                 item.setData(Qt.ItemDataRole.UserRole, file)
                 self.addItem(item)
+
+# ClamAV Configuration Dialog
+class ClamAVConfigDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("ClamAV Configuration")
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+
+        # Path to ClamAV
+        path_layout = QHBoxLayout()
+        path_layout.addWidget(QLabel("ClamAV Path:"))
+        self.path_input = QLineEdit()
+        self.path_input.setText(load_config().get("clamav_path", ""))
+        path_layout.addWidget(self.path_input)
+        browse_button = QPushButton("Browse")
+        browse_button.clicked.connect(self.browse_clamav)
+        path_layout.addWidget(browse_button)
+        layout.addLayout(path_layout)
+
+        # Test ClamAV
+        test_button = QPushButton("Test ClamAV")
+        test_button.clicked.connect(self.test_clamav)
+        layout.addWidget(test_button)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        save_button = QPushButton("Save")
+        save_button.clicked.connect(self.save_config)
+        button_layout.addWidget(save_button)
+        cancel_button = QPushButton("Cancel")
+        cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(cancel_button)
+        layout.addLayout(button_layout)
+
+        self.setLayout(layout)
+
+    def browse_clamav(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Select ClamAV Executable", 
+                                             filter="Executables (*.exe)")
+        if path:
+            self.path_input.setText(path)
+
+    def test_clamav(self):
+        path = self.path_input.text()
+        try:
+            if not os.path.exists(path):
+                QMessageBox.critical(self, "ClamAV Test Failed", f"File not found: {path}")
+                return
+
+            result = subprocess.run([path, "--version"], capture_output=True, text=True)
+            QMessageBox.information(self, "ClamAV Test", f"ClamAV is working!\n\n{result.stdout}")
+        except Exception as e:
+            QMessageBox.critical(self, "ClamAV Test Failed", f"Error: {e}")
+
+    def save_config(self):
+        config = load_config()
+        config["clamav_path"] = self.path_input.text()
+        save_config(config)
+        QMessageBox.information(self, "Configuration Saved", "ClamAV configuration has been saved.")
+        self.accept()
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
